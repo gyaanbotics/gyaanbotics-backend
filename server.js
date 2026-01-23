@@ -13,6 +13,10 @@ const app = express();
 // ---------------- MIDDLEWARE ----------------
 app.use(cors());
 app.use(express.json());
+app.get("/", (req, res) => {
+  res.send("🚀 GyaanBotics Backend is running successfully");
+});
+
 
 // ---------------- MONGODB CONNECTION ----------------
 mongoose
