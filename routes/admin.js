@@ -1,33 +1,34 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-const auth = require("../middleware/auth");
-
 const router = express.Router();
 
-const ADMIN_EMAIL = "admin@gyaanbotics.com";
-const ADMIN_PASSWORD_HASH = bcrypt.hashSync("Admin@123", 10);
+const Enquiry = require("../models/Enquiry"); // CASE-SENSITIVE
 
-router.post("/login", (req, res) => {
-  const { email, password } = req.body;
+// Middleware: Admin auth
+function authenticateAdmin(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: "No token provided" });
+  }
 
-  if (email !== ADMIN_EMAIL)
-    return res.status(401).json({ message: "Invalid credentials" });
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid token" });
+    }
+    next();
+  });
+}
 
-  if (!bcrypt.compareSync(password, ADMIN_PASSWORD_HASH))
-    return res.status(401).json({ message: "Invalid credentials" });
-
-  const token = jwt.sign(
-    { role: "admin" },
-    process.env.JWT_SECRET,
-    { expiresIn: "1d" }
-  );
-
-  res.json({ token });
-});
-
-router.get("/dashboard", auth, (req, res) => {
-  res.json({ message: "Welcome Admin" });
+// ✅ THIS IS THE MISSING ROUTE
+router.get("/enquiries", authenticateAdmin, async (req, res) => {
+  try {
+    const enquiries = await Enquiry.find().sort({ createdAt: -1 });
+    res.json(enquiries);
+  } catch (err) {
+    console.error("❌ Admin enquiry fetch error:", err);
+    res.status(500).json({ message: "Failed to fetch enquiries" });
+  }
 });
 
 module.exports = router;
