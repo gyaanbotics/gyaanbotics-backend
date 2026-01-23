@@ -52,7 +52,10 @@ router.post("/", async (req, res) => {
       console.error("❌ Email failed:", mailErr.message);
     }
 
-    res.json({ message: "Enquiry submitted successfully" });
+    res.status(200).json({
+  success: true,
+  message: "Enquiry submitted successfully"
+});
   } catch (err) {
     console.error("❌ Enquiry error:", err);
     res.status(500).json({ message: "Server error" });
