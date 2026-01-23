@@ -1,53 +1,33 @@
 const express = require("express");
-const router = express.Router();
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const auth = require("../middleware/auth");
 
-const Admin = require("../models/Admin");
-const Enquiry = require("../models/Enquiry");
+const router = express.Router();
 
-// ---------------- ADMIN LOGIN ----------------
-router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
+const ADMIN_EMAIL = "admin@gyaanbotics.com";
+const ADMIN_PASSWORD_HASH = bcrypt.hashSync("Admin@123", 10);
 
-  const admin = await Admin.findOne({ username });
-  if (!admin) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
+router.post("/login", (req, res) => {
+  const { email, password } = req.body;
 
-  const isMatch = await bcrypt.compare(password, admin.password);
-  if (!isMatch) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
+  if (email !== ADMIN_EMAIL)
+    return res.status(401).json({ message: "Invalid credentials" });
+
+  if (!bcrypt.compareSync(password, ADMIN_PASSWORD_HASH))
+    return res.status(401).json({ message: "Invalid credentials" });
 
   const token = jwt.sign(
-    { id: admin._id },
+    { role: "admin" },
     process.env.JWT_SECRET,
-    { expiresIn: "2h" }
+    { expiresIn: "1d" }
   );
 
   res.json({ token });
 });
 
-// ---------------- AUTH MIDDLEWARE ----------------
-const authMiddleware = (req, res, next) => {
-  const token = req.headers.authorization;
-  if (!token) {
-    return res.status(401).json({ error: "No token provided" });
-  }
-
-  try {
-    jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: "Invalid token" });
-  }
-};
-
-// ---------------- PROTECTED ENQUIRIES ----------------
-router.get("/enquiries", authMiddleware, async (req, res) => {
-  const enquiries = await Enquiry.find().sort({ createdAt: -1 });
-  res.json(enquiries);
+router.get("/dashboard", auth, (req, res) => {
+  res.json({ message: "Welcome Admin" });
 });
 
 module.exports = router;
