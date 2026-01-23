@@ -24,7 +24,7 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => console.error("❌ MongoDB error:", err));
 
-/* ================= EMAIL CONFIG ================= */
+/* ================= EMAIL ================= */
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -54,22 +54,24 @@ app.get("/", (req, res) => {
 /* -------- SAVE ENQUIRY -------- */
 app.post("/contact/enquiry", async (req, res) => {
   try {
+    console.log("📦 BODY RECEIVED:", req.body);
+
     const { name, email, organization, message } = req.body;
 
     if (!name || !email || !message) {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    // Save enquiry
     const enquiry = new Enquiry({
       name,
       email,
       organization,
       message
     });
+
     await enquiry.save();
 
-    // Try sending email (NON-BLOCKING)
+    // Email (non-blocking)
     try {
       await transporter.sendMail({
         from: `"GyaanBotics Website" <${process.env.ADMIN_EMAIL}>`,
@@ -90,7 +92,7 @@ app.post("/contact/enquiry", async (req, res) => {
     res.json({ message: "Enquiry submitted successfully" });
 
   } catch (err) {
-    console.error(err);
+    console.error("❌ ERROR:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
