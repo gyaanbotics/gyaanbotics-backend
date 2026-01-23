@@ -9,16 +9,22 @@ const Enquiry = require("../models/Enquiry");
 /* ================= ADMIN LOGIN ================= */
 router.post("/login", async (req, res) => {
   try {
-    console.log("LOGIN HIT", req.body);
+    console.log("🔐 LOGIN HIT");
+    console.log("BODY:", req.body);
 
     const { email, password } = req.body;
 
     const admin = await Admin.findOne({ email });
+
+    console.log("ADMIN FROM DB:", admin); // 🔴 VERY IMPORTANT
+
     if (!admin) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, admin.password);
+    console.log("PASSWORD MATCH:", isMatch);
+
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -37,7 +43,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-/* ================= AUTH MIDDLEWARE ================= */
+/* ================= AUTH ================= */
 function authenticateAdmin(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ message: "No token" });
