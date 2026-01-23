@@ -13,42 +13,39 @@ const app = express();
 // ---------------- MIDDLEWARE ----------------
 app.use(cors());
 app.use(express.json());
-app.get("/", (req, res) => {
-  res.send("🚀 GyaanBotics Backend is running successfully");
-});
 
+// ---------------- HEALTH CHECK ----------------
+app.get("/", (req, res) => {
+  res.send("🚀 GyaanBotics Backend is running");
+});
 
 // ---------------- MONGODB CONNECTION ----------------
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => {
-    console.error("❌ MongoDB connection error:", err.message);
+    console.error("❌ MongoDB error:", err.message);
     process.exit(1);
   });
 
-// ---------------- EMAIL CONFIG (RENDER-SAFE) ----------------
+// ---------------- EMAIL CONFIG ----------------
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
-  secure: false, // MUST be false for port 587
+  secure: false,
   auth: {
     user: process.env.EMAIL,
     pass: process.env.EMAIL_PASS
   },
-  tls: {
-    rejectUnauthorized: false
-  }
+  tls: { rejectUnauthorized: false }
 });
 
-// ---------------- CONTACT FORM API ----------------
+// ---------------- CONTACT FORM ----------------
 app.post("/enquiry", async (req, res) => {
   try {
-    // Save enquiry to DB
     const enquiry = new Enquiry(req.body);
     await enquiry.save();
 
-    // Send email notification
     await transporter.sendMail({
       from: `"GyaanBotics" <${process.env.EMAIL}>`,
       to: process.env.EMAIL,
@@ -63,8 +60,7 @@ app.post("/enquiry", async (req, res) => {
       `
     });
 
-    res.status(200).json({ success: true });
-
+    res.json({ success: true });
   } catch (err) {
     console.error("❌ Enquiry error:", err.message);
     res.status(500).json({ error: "Server error" });
@@ -74,8 +70,8 @@ app.post("/enquiry", async (req, res) => {
 // ---------------- ADMIN ROUTES ----------------
 app.use("/admin", adminRoutes);
 
-// ---------------- START SERVER (RENDER COMPATIBLE) ----------------
+// ---------------- START SERVER ----------------
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT}`)
+);
