@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 
 const Enquiry = require("./models/Enquiry");
 
@@ -23,13 +24,22 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => console.error("❌ MongoDB error:", err));
 
-/* ================= AUTH MIDDLEWARE ================= */
-function authenticateAdmin(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ message: "No token" });
+/* ================= EMAIL CONFIG ================= */
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.ADMIN_EMAIL,
+    pass: process.env.ADMIN_EMAIL_PASS
+  }
+});
 
-  const token = authHeader.split(" ")[1];
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+/* ================= AUTH ================= */
+function authenticateAdmin(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth) return res.status(401).json({ message: "No token" });
+
+  const token = auth.split(" ")[1];
+  jwt.verify(token, process.env.JWT_SECRET, (err) => {
     if (err) return res.status(403).json({ message: "Invalid token" });
     next();
   });
@@ -37,24 +47,48 @@ function authenticateAdmin(req, res, next) {
 
 /* ================= ROUTES ================= */
 
-/* Health check */
 app.get("/", (req, res) => {
   res.send("GyaanBotics Backend Running");
 });
 
-/* -------- SAVE ENQUIRY (CONTACT FORM) -------- */
-app.post("/api/enquiry", async (req, res) => {
+/* -------- SAVE ENQUIRY -------- */
+app.post("/contact/enquiry", async (req, res) => {
   try {
-    const { name, email, message } = req.body;
+    const { name, email, organization, message } = req.body;
 
     if (!name || !email || !message) {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    const enquiry = new Enquiry({ name, email, message });
+    // Save enquiry
+    const enquiry = new Enquiry({
+      name,
+      email,
+      organization,
+      message
+    });
     await enquiry.save();
 
-    res.json({ message: "Enquiry saved successfully" });
+    // Try sending email (NON-BLOCKING)
+    try {
+      await transporter.sendMail({
+        from: `"GyaanBotics Website" <${process.env.ADMIN_EMAIL}>`,
+        to: process.env.ADMIN_EMAIL,
+        subject: "📩 New Enquiry Received",
+        html: `
+          <h2>New Enquiry</h2>
+          <p><b>Name:</b> ${name}</p>
+          <p><b>Email:</b> ${email}</p>
+          <p><b>Organization:</b> ${organization || "-"}</p>
+          <p><b>Message:</b><br>${message}</p>
+        `
+      });
+    } catch (e) {
+      console.error("❌ Email failed:", e.message);
+    }
+
+    res.json({ message: "Enquiry submitted successfully" });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -71,7 +105,7 @@ app.get("/admin/enquiries", authenticateAdmin, async (req, res) => {
   }
 });
 
-/* ================= START SERVER ================= */
+/* ================= START ================= */
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
