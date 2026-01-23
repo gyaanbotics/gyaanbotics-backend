@@ -39,3 +39,8 @@ app.use("/contact/enquiry", enquiryRoutes);
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+const bcrypt = require("bcryptjs");
+
+bcrypt.hash("admin123", 10).then(hash => {
+  console.log("NEW ADMIN HASH:", hash);
+});
