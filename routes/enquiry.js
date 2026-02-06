@@ -24,11 +24,6 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    // Basic phone validation (India)
-    if (!/^[0-9]{10}$/.test(phone)) {
-      return res.status(400).json({ message: "Invalid phone number" });
-    }
-
     const enquiry = new Enquiry({
       name,
       email,
