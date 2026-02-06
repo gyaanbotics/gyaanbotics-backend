@@ -58,7 +58,7 @@ router.post("/", async (req, res) => {
       console.error("❌ Email failed:", mailErr.message);
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Enquiry submitted successfully",
     });
