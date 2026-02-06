@@ -1,64 +1,64 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const router = express.Router();
 
-const Admin = require("../models/Admin");
+// ✅ IMPORTANT: MATCH FILE NAME EXACTLY
 const Enquiry = require("../models/Enquiry");
 
-/* ================= ADMIN LOGIN ================= */
-router.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    console.log("LOGIN ATTEMPT:", email, password); // DEBUG
-
-    const admin = await Admin.findOne({ email });
-    if (!admin) {
-      console.log("❌ Admin not found");
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    const isMatch = await bcrypt.compare(password, admin.password);
-    console.log("PASSWORD MATCH:", isMatch); // DEBUG
-
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    const token = jwt.sign(
-      { id: admin._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
-    res.json({ token });
-
-  } catch (err) {
-    console.error("LOGIN ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
+// Email transporter
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.ADMIN_EMAIL,
+    pass: process.env.ADMIN_EMAIL_PASS,
+  },
 });
 
-/* ================= AUTH ================= */
-function authenticateAdmin(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ message: "No token" });
-
-  const token = authHeader.split(" ")[1];
-  jwt.verify(token, process.env.JWT_SECRET, (err) => {
-    if (err) return res.status(403).json({ message: "Invalid token" });
-    next();
-  });
-}
-
-/* ================= FETCH ENQUIRIES ================= */
-router.get("/enquiries", authenticateAdmin, async (req, res) => {
+// POST: Save enquiry
+router.post("/", async (req, res) => {
   try {
-    const enquiries = await Enquiry.find().sort({ createdAt: -1 });
-    res.json(enquiries);
+    console.log("📦 BODY RECEIVED:", req.body);
+
+    const { name, email, organization, message } = req.body;
+
+    if (!name || !email || !message) {
+      return res.status(400).json({ message: "All fields required" });
+    }
+
+    const enquiry = new Enquiry({
+      name,
+      email,
+      organization,
+      message,
+    });
+
+    await enquiry.save();
+
+    // Email (non-blocking)
+    try {
+      await transporter.sendMail({
+        from: `"GyaanBotics Website" <${process.env.ADMIN_EMAIL}>`,
+        to: process.env.ADMIN_EMAIL,
+        subject: "📩 New Enquiry Received",
+        html: `
+          <h2>New Enquiry</h2>
+          <p><b>Name:</b> ${name}</p>
+          <p><b>Email:</b> ${email}</p>
+          <p><b>Organization:</b> ${organization || "-"}</p>
+          <p><b>Message:</b><br>${message}</p>
+        `,
+      });
+    } catch (mailErr) {
+      console.error("❌ Email failed:", mailErr.message);
+    }
+
+    res.status(200).json({
+  success: true,
+  message: "Enquiry submitted successfully"
+});
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch enquiries" });
+    console.error("❌ Enquiry error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
