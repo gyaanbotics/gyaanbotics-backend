@@ -2,10 +2,9 @@ const express = require("express");
 const nodemailer = require("nodemailer");
 const router = express.Router();
 
-// ✅ IMPORTANT: MATCH FILE NAME EXACTLY
 const Enquiry = require("../models/Enquiry");
 
-// Email transporter
+// Email transporter (optional)
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -21,8 +20,13 @@ router.post("/", async (req, res) => {
 
     const { name, email, phone, organization, message } = req.body;
 
-    if (!name || !email || !message) {
+    if (!name || !email || !phone || !message) {
       return res.status(400).json({ message: "All fields required" });
+    }
+
+    // Basic phone validation (India)
+    if (!/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({ message: "Invalid phone number" });
     }
 
     const enquiry = new Enquiry({
@@ -35,7 +39,7 @@ router.post("/", async (req, res) => {
 
     await enquiry.save();
 
-    // Email (non-blocking)
+    // Email (non-blocking, optional)
     try {
       await transporter.sendMail({
         from: `"GyaanBotics Website" <${process.env.ADMIN_EMAIL}>`,
@@ -45,16 +49,20 @@ router.post("/", async (req, res) => {
           <h2>New Enquiry</h2>
           <p><b>Name:</b> ${name}</p>
           <p><b>Email:</b> ${email}</p>
-          <p><b>Phonel:</b> ${phone}</p>
+          <p><b>Phone:</b> ${phone}</p>
           <p><b>Organization:</b> ${organization || "-"}</p>
           <p><b>Message:</b><br>${message}</p>
         `,
       });
-    
+    } catch (mailErr) {
+      console.error("❌ Email failed:", mailErr.message);
+    }
+
     res.status(200).json({
-  success: true,
-  message: "Enquiry submitted successfully"
-});
+      success: true,
+      message: "Enquiry submitted successfully",
+    });
+
   } catch (err) {
     console.error("❌ Enquiry error:", err);
     res.status(500).json({ message: "Server error" });
