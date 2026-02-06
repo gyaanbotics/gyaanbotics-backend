@@ -19,7 +19,7 @@ router.post("/", async (req, res) => {
   try {
     console.log("📦 BODY RECEIVED:", req.body);
 
-    const { name, email, organization, message } = req.body;
+    const { name, email, phone, organization, message } = req.body;
 
     if (!name || !email || !message) {
       return res.status(400).json({ message: "All fields required" });
@@ -28,6 +28,7 @@ router.post("/", async (req, res) => {
     const enquiry = new Enquiry({
       name,
       email,
+      phone,
       organization,
       message,
     });
@@ -44,14 +45,12 @@ router.post("/", async (req, res) => {
           <h2>New Enquiry</h2>
           <p><b>Name:</b> ${name}</p>
           <p><b>Email:</b> ${email}</p>
+          <p><b>Phonel:</b> ${phone}</p>
           <p><b>Organization:</b> ${organization || "-"}</p>
           <p><b>Message:</b><br>${message}</p>
         `,
       });
-    } catch (mailErr) {
-      console.error("❌ Email failed:", mailErr.message);
-    }
-
+    
     res.status(200).json({
   success: true,
   message: "Enquiry submitted successfully"
